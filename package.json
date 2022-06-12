@@ -1,0 +1,13 @@
+{
+  "name": "counter",
+  "version": "1.0.0",
+  "description": "",
+  "dependencies": {
+    "@terra-money/terrain": "0.2.0"
+  },
+  "workspaces": [
+    "frontend"
+  ],
+  "author": "Terra Money <core@terra.money>",
+  "license": "ISC"
+}

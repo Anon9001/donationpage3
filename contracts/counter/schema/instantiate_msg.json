@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "raffle_state"
+  ],
+  "properties": {
+    "count": {
+      "type": "integer",
+      "format": "uint8"
+    }
+  }
+}
