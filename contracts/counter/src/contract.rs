@@ -34,6 +34,7 @@ pub fn instantiate(
         .add_attribute("raffle_state", msg.raffle_state.to_string()))
 }
 
+//function maps from msg to here.  Gateway to main contract from msg
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -50,6 +51,7 @@ pub fn execute(
     }
 }
 
+// Tries to donate to users, errors out if input isn't correct or tries to donate too much to a user
 pub fn try_donate (
     deps: DepsMut,
     _env: Env,
@@ -82,7 +84,6 @@ pub fn try_donate (
             amount: vec![coin_amount],
         });
 
-        /////////////////////
         let cur_addr:Addr = deps.api.addr_validate(&cur_donation.address)?;
 
         let update_victim_data_closure = |current_victim_data: Option<VictimData>| -> StdResult<VictimData> {
@@ -102,7 +103,6 @@ pub fn try_donate (
         }
         };
         VICTIMS.update(deps.storage, &cur_addr, update_victim_data_closure)?;
-        //////////////////
           
     }
 
@@ -153,11 +153,7 @@ pub fn try_victim_amt_modify(deps: DepsMut, info: MessageInfo, victims: Vec<Inpu
 }
 
 
-//Uint128::try_from("34567")   swap owed_amts to just uint128
 pub fn try_victim_entry(deps: DepsMut, info: MessageInfo, victims: Vec<InputVictimInfoOwe>)  -> Result<Response, ContractError> {
-
-
-    //Uint128
     let state = STATE.load(deps.storage)?;
     if info.sender != state.owner {
         return Err(ContractError::OnlyOwner{})
