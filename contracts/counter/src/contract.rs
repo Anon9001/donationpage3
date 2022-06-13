@@ -1,11 +1,13 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{StdError, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, CosmosMsg,
-    StdResult, Addr, Uint128, BankMsg, Storage, Api, Querier, Coin};
+use cosmwasm_std::{StdError, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, Addr, Uint128, BankMsg, Coin, Order};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{OwnderAddressResponse, RaffleStateResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{OwnderAddressResponse, RaffleStateResponse, ExecuteMsg, InstantiateMsg, QueryMsg,
+    InputDonation, InputVictimInfoOwe, InputVictimInfoPaid, AllVictimsResponse, VictimInfo, SingleOutputDonation, 
+    DonationResponse};
 use crate::state::{State, STATE, DONATIONS, VICTIMS, VictimData};
 
 // version info for migration info
@@ -42,33 +44,25 @@ pub fn execute(
     match msg {
         ExecuteMsg::SetRaffleState { new_raffle_value } => try_set_raffle_state(deps, info, new_raffle_value),
         ExecuteMsg::TransferOwnership{address} => try_transfer_ownership(deps, info, address),
-        ExecuteMsg::VictimEntry {addresses, owed_amts} => try_victim_entry(deps, info, addresses, owed_amts),
-        ExecuteMsg::VictimAmtModify {addresses, amounts_recived} => try_victim_amt_modify(deps, info, addresses, amounts_recived),
-        ExecuteMsg::Donate { addresses, transfer_amts} => try_donate(deps, env, info, addresses, transfer_amts),
+        ExecuteMsg::VictimEntry {victims} => try_victim_entry(deps, info, victims),
+        ExecuteMsg::VictimAmtModify {victims} => try_victim_amt_modify(deps, info, victims),
+        ExecuteMsg::Donate { donations } => try_donate(deps, env, info, donations),
     }
 }
 
 pub fn try_donate (
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
-    addresses: Vec<String>, 
-    transfer_amts: Vec<u32>,
+    donations: Vec<InputDonation>, 
 ) -> Result<Response, ContractError> {
      
     if info.funds.len() != 1 {
         return Err(ContractError::DonateIncorrectNumberTypes{})
     }
-//    if info.funds[0].denom
 
-// for payment in payments {
-//     let to_address = payment.recipient.clone();
-//     messages.push(BankMsg::Send {
-//         to_address,
-//         amount: payment.pay.clone(),
-//     });
-// }
     //NOTE change this to USDC, USDT, stable coins on prod
+    //PUT this in a settings file?
     if info.funds[0].denom != "uluna" {
         return Err(ContractError::DonateIncorrectType{})
     }
@@ -76,61 +70,81 @@ pub fn try_donate (
     let mut amt_recived = info.funds[0].amount.u128();
     let donation_amount = info.funds[0].amount;
     let mut messages = vec![];
-    for (cur_index, cur_string_addr) in addresses.iter().enumerate() {
-        let cur_amt = transfer_amts[cur_index] as u128;
+    for cur_donation in donations {
+        let cur_amt = cur_donation.amt as u128;
         let coin_amount = Coin {
             amount: Uint128::from(cur_amt),
-            denom: "uluna".to_string(),
+            denom: info.funds[0].denom.to_string(),
         };
         amt_recived -= coin_amount.amount.u128();
         messages.push(BankMsg::Send {
-            to_address: cur_string_addr.clone(),
+            to_address: cur_donation.address.clone(),
             amount: vec![coin_amount],
         });
+
+        /////////////////////
+        let cur_addr:Addr = deps.api.addr_validate(&cur_donation.address)?;
+
+        let update_victim_data_closure = |current_victim_data: Option<VictimData>| -> StdResult<VictimData> {
+            match current_victim_data{
+            //Note: relying on compiler optimization here to save only what's changed... kind of a long shot, 
+            //get it working then replace with a modify
+            // Some(data) => Ok(VictimData{amount_owed: Uint128::from(123u128), amount_recived: data.amount_recived}),
+            // None => Ok(VictimData{amount_owed: Uint128::from(456u128), amount_recived: Uint128::from(0u128)}),
+           Some(data) => {
+               let new_amt_recived = data.amount_recived + cur_donation.amt;
+               if new_amt_recived > data.amount_owed {
+                return Err(StdError::generic_err(format!("{} Donate function: unable to donate more than the user is owed", cur_addr)))
+               }
+                Ok(VictimData{amount_owed: data.amount_owed, amount_recived: new_amt_recived, on_chain: data.on_chain})
+           },
+           None => Err(StdError::generic_err(format!("{} Donate function: user not found, for user modify recived", cur_addr))),
+        }
+        };
+        VICTIMS.update(deps.storage, &cur_addr, update_victim_data_closure)?;
+        //////////////////
+          
     }
 
     //Could just refund / send back extra coins and let the system error out on too few coins but would rather err on the side of causion
     if amt_recived != 0 {
         return Err(ContractError::DonateIncorrectAmountSent{})
     }
-/////////////
-let raffle_state = STATE.load(deps.storage)?.raffle_state;
-let donor_address = info.sender;
+    let raffle_state = STATE.load(deps.storage)?.raffle_state;
+    let donor_address = info.sender;
 
-let update_donate_data_closure = |current_donor_data: Option<Uint128>| -> StdResult<Uint128> {
-    match current_donor_data{
-        Some(data) => Ok(data + donation_amount), //
-        None => Ok(donation_amount),
-    }
-};
+    let update_donate_data_closure = |current_donor_data: Option<Uint128>| -> StdResult<Uint128> {
+        match current_donor_data{
+            Some(data) => Ok(data + donation_amount), //
+            None => Ok(donation_amount),
+        }
+    };
 
-DONATIONS.update(deps.storage, (&donor_address, raffle_state), update_donate_data_closure)?;
+    DONATIONS.update(deps.storage, (&donor_address, raffle_state), update_donate_data_closure)?;
 
-/// 
 
     Ok(Response::new().add_messages(messages))
 }
 
-pub fn try_victim_amt_modify(deps: DepsMut, info: MessageInfo, addresses: Vec<String>, amounts_recived: Vec<u32>)  -> Result<Response, ContractError> {
+pub fn try_victim_amt_modify(deps: DepsMut, info: MessageInfo, victims: Vec<InputVictimInfoPaid>)  -> Result<Response, ContractError> {
     //Uint128
     let state = STATE.load(deps.storage)?;
     if info.sender != state.owner {
         return Err(ContractError::OnlyOwner{})
     }
 
-    for (cur_index, cur_string_addr) in addresses.iter().enumerate() {
-        let cur_recived = amounts_recived.get(cur_index).ok_or(ContractError::InputError{})?; 
-        let cur_addr:Addr = deps.api.addr_validate(&cur_string_addr)?;
+    for cur_victim in victims {
+        let cur_recived = cur_victim.paid;
+        let cur_addr:Addr = deps.api.addr_validate(&cur_victim.address)?;
         
         let update_victim_data_closure = |current_victim_data: Option<VictimData>| -> StdResult<VictimData> {
                 match current_victim_data{
                 //Note: relying on compiler optimization here to save only what's changed... kind of a long shot, 
                 //get it working then replace with a modify
-                // Some(data) => Ok(VictimData{amount_owed: Uint128::from(123u128), amount_recived: data.amount_recived}), //
+                // Some(data) => Ok(VictimData{amount_owed: Uint128::from(123u128), amount_recived: data.amount_recived}),
                 // None => Ok(VictimData{amount_owed: Uint128::from(456u128), amount_recived: Uint128::from(0u128)}),
-               Some(data) => Ok(VictimData{amount_owed: data.amount_owed, amount_recived: *cur_recived}), //
+               Some(data) => Ok(VictimData{amount_owed: data.amount_owed, amount_recived: cur_recived, on_chain: data.on_chain}),
                None => Err(StdError::generic_err(format!("{} user not found, for user modify recived", cur_addr))),
-               //None => Err(ContractError::UserNonExistModify{}),
             }
         };
         VICTIMS.update(deps.storage, &cur_addr, update_victim_data_closure)?;
@@ -140,7 +154,7 @@ pub fn try_victim_amt_modify(deps: DepsMut, info: MessageInfo, addresses: Vec<St
 
 
 //Uint128::try_from("34567")   swap owed_amts to just uint128
-pub fn try_victim_entry(deps: DepsMut, info: MessageInfo, addresses: Vec<String>, owed_amts: Vec<u32>)  -> Result<Response, ContractError> {
+pub fn try_victim_entry(deps: DepsMut, info: MessageInfo, victims: Vec<InputVictimInfoOwe>)  -> Result<Response, ContractError> {
 
 
     //Uint128
@@ -149,9 +163,11 @@ pub fn try_victim_entry(deps: DepsMut, info: MessageInfo, addresses: Vec<String>
         return Err(ContractError::OnlyOwner{})
     }
 
-    for (cur_index, cur_string_addr) in addresses.iter().enumerate() {
-        let cur_owed = owed_amts.get(cur_index).ok_or(ContractError::InputError{})?; 
-        let cur_addr:Addr = deps.api.addr_validate(&cur_string_addr)?;
+    
+    for cur_victim in victims {
+        let cur_owed = cur_victim.owed; 
+        let cur_addr:Addr = deps.api.addr_validate(&cur_victim.address)?;
+        let on_chain = cur_victim.onchain;
         
         let update_victim_data_closure = |current_victim_data: Option<VictimData>| -> StdResult<VictimData> {
                 match current_victim_data{
@@ -159,8 +175,8 @@ pub fn try_victim_entry(deps: DepsMut, info: MessageInfo, addresses: Vec<String>
                 //get it working then replace with a modify
                 // Some(data) => Ok(VictimData{amount_owed: Uint128::from(123u128), amount_recived: data.amount_recived}), //
                 // None => Ok(VictimData{amount_owed: Uint128::from(456u128), amount_recived: Uint128::from(0u128)}),
-               Some(data) => Ok(VictimData{amount_owed: *cur_owed, amount_recived: data.amount_recived}), //
-               None => Ok(VictimData{amount_owed: *cur_owed, amount_recived: 0u32}),
+               Some(data) => Ok(VictimData{amount_owed: cur_owed, amount_recived: data.amount_recived, on_chain: on_chain}), //
+               None => Ok(VictimData{amount_owed: cur_owed, amount_recived: 0u32, on_chain: on_chain}),
             }
         };
         VICTIMS.update(deps.storage, &cur_addr, update_victim_data_closure)?;
@@ -206,18 +222,31 @@ fn query_owner_addr(deps: Deps) -> StdResult<OwnderAddressResponse> {
     Ok(OwnderAddressResponse { owner_address: state.owner })
 }
 
-fn query_victim_data(deps: Deps) -> Result<std::vec::Vec<(cosmwasm_std::Addr, VictimData)>, cosmwasm_std::StdError> {
-    let ret: StdResult<Vec<_>> = VICTIMS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .collect();
-    ret
+fn query_victim_data(deps: Deps) -> StdResult<AllVictimsResponse> {
+    let victims = VICTIMS
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| {
+            item.map(|(addr, victim)| VictimInfo {
+                address: addr.into(),
+                victim,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+    Ok(AllVictimsResponse { victims })
 }
 
-fn query_donor_data(deps: Deps) -> Result<std::vec::Vec<((cosmwasm_std::Addr, u8), Uint128)>, cosmwasm_std::StdError> {
-    let ret: StdResult<Vec<_>> = DONATIONS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .collect();
-    ret
+fn query_donor_data(deps: Deps) -> StdResult<DonationResponse> {
+    let donations = DONATIONS
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| {
+            item.map(|((addr, raffle_state), donation_amount)| SingleOutputDonation {
+                address: addr.into(),
+                donation_amount,
+                raffle_state,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+    Ok(DonationResponse { donations })
 }
 
 fn query_raffle_state(deps: Deps) -> StdResult<RaffleStateResponse> {

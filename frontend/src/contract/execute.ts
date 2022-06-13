@@ -72,12 +72,12 @@ export const set_raffle_state = async (wallet: ConnectedWallet, new_raffle_value
 export const transfer_ownership = async (wallet: ConnectedWallet, address: string) =>
   _exec({ transfer_ownership: { address } },0)(wallet);
 
-  export const victim_entry = async (wallet: ConnectedWallet, addresses: string[], owed_amts:number[]) =>
-  _exec({ victim_entry: { addresses,  owed_amts} },0)(wallet);
+  export const victim_entry = async (wallet: ConnectedWallet, victims: any[]) =>
+  _exec({ victim_entry: { victims } },0)(wallet);
 
-  export const victim_amt_modify = async (wallet: ConnectedWallet, addresses: string[], amounts_recived:number[]) =>
-  _exec({ victim_amt_modify: { addresses,  amounts_recived} },0)(wallet);
+  export const victim_amt_modify = async (wallet: ConnectedWallet, victims: any[]) =>
+  _exec({ victim_amt_modify: { victims } },0)(wallet);
 
-  export const donate = async (wallet: ConnectedWallet, addresses: string[], transfer_amts:number[], totalLunaAmt: number) =>
-  _exec({ donate: {  addresses, transfer_amts} },  totalLunaAmt)(wallet);
+  export const donate = async (wallet: ConnectedWallet, donations: any[], totalLunaAmt: number) =>
+  _exec({ donate: { donations } },  totalLunaAmt)(wallet);
 

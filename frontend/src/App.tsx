@@ -83,7 +83,18 @@ const App = () => {
       var victimAddresses = newVictimAddress.split(',');
       var victimOwedAmts = newVictimOwedAmts.split(',').map(Number);
       console.log(newVictimAddress, newVictimOwedAmts)
-      await execute.victim_entry(connectedWallet, victimAddresses, victimOwedAmts)
+      var victims: any[] = [];
+      victimAddresses.forEach(function (curAddress, index) {
+        var curAmt = victimOwedAmts[index];
+        victims.push(
+          {
+              address: curAddress,
+              owed: curAmt,
+              onchain: true,
+          }
+        )
+      });
+      await execute.victim_entry(connectedWallet, victims)
       setUpdating(false)
     }
   }
@@ -95,7 +106,21 @@ const App = () => {
       var victimAddresses = victimRecivedAddress.split(',');
       var victimRecivedAmtsArray = victimRecivedAmts.split(',').map(Number);
       console.log(victimRecivedAddress, victimRecivedAmts)
-      await execute.victim_amt_modify(connectedWallet, victimAddresses, victimRecivedAmtsArray)
+
+      var victims: any[] = [];
+      victimAddresses.forEach(function (curAddress, index) {
+        var curAmt = victimRecivedAmtsArray[index];
+        victims.push(
+          {
+              address: curAddress,
+              paid: curAmt,
+          }
+        )
+      });
+
+
+
+      await execute.victim_amt_modify(connectedWallet, victims)
       setUpdating(false)
     }
   }
@@ -111,8 +136,21 @@ const App = () => {
         coinAmountsArray.push(new Coin("uluna", element));
       });
       var totalAmtToDonate = donateAmtsArray.reduce((a, b) => a + b, 0);
+
+      var donations: any[] = [];
+      donateAddressesArray.forEach(function (curAddress, index) {
+        var curAmt = donateAmtsArray[index];
+        donations.push(
+          {
+              address: curAddress,
+              amt: curAmt,
+          }
+        )
+      });
+
+
       console.log(donateAddressesArray, donateAmtsArray)
-      await execute.donate(connectedWallet, donateAddressesArray, donateAmtsArray, totalAmtToDonate);
+      await execute.donate(connectedWallet, donations, totalAmtToDonate);
       setUpdating(false)
     }
   }
