@@ -93,10 +93,12 @@ pub fn try_donate (
             // Some(data) => Ok(VictimData{amount_owed: Uint128::from(123u128), amount_recived: data.amount_recived}),
             // None => Ok(VictimData{amount_owed: Uint128::from(456u128), amount_recived: Uint128::from(0u128)}),
            Some(data) => {
-               let new_amt_recived = data.amount_recived + cur_donation.amt;
-               if new_amt_recived > data.amount_owed {
-                return Err(StdError::generic_err(format!("{} Donate function: unable to donate more than the user is owed", cur_addr)))
-               }
+                let (new_amt_recived, overflow_check) = data.amount_recived.overflowing_add(cur_donation.amt);
+                assert_eq!(overflow_check, false);
+                if new_amt_recived > data.amount_owed {
+                    return Err(StdError::generic_err(format!("{} Donate function: unable to donate more than the user is owed", cur_addr)))
+                }
+
                 Ok(VictimData{amount_owed: data.amount_owed, amount_recived: new_amt_recived, on_chain: data.on_chain})
            },
            None => Err(StdError::generic_err(format!("{} Donate function: user not found, for user modify recived", cur_addr))),
