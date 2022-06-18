@@ -81,7 +81,7 @@ const App = () => {
     if (connectedWallet) {
       setUpdating(true)
       var victimAddresses = newVictimAddress.split(',');
-      var victimOwedAmts = newVictimOwedAmts.split(',').map(Number);
+      var victimOwedAmts = newVictimOwedAmts.split(',');
       console.log(newVictimAddress, newVictimOwedAmts)
       var victims: any[] = [];
       victimAddresses.forEach(function (curAddress, index) {
@@ -104,7 +104,7 @@ const App = () => {
     if (connectedWallet) {
       setUpdating(true)
       var victimAddresses = victimRecivedAddress.split(',');
-      var victimRecivedAmtsArray = victimRecivedAmts.split(',').map(Number);
+      var victimRecivedAmtsArray = victimRecivedAmts.split(',');
       console.log(victimRecivedAddress, victimRecivedAmts)
 
       var victims: any[] = [];
@@ -129,13 +129,13 @@ const App = () => {
   if (connectedWallet) {
       setUpdating(true)
       var donateAddressesArray = donateAddress.split(',');
-      var donateAmtsArray = donateAmts.split(',').map(Number);
+      var donateAmtsArray = donateAmts.split(',');
 
       var coinAmountsArray: Coin[] = new Array();
       donateAmtsArray.forEach((element, index) => {
         coinAmountsArray.push(new Coin("uluna", element));
       });
-      var totalAmtToDonate = donateAmtsArray.reduce((a, b) => a + b, 0);
+      var totalAmtToDonate = donateAmtsArray.map(Number).reduce((a, b) => a + b, 0);
 
       var donations: any[] = [];
       donateAddressesArray.forEach(function (curAddress, index) {

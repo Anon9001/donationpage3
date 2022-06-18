@@ -73,9 +73,9 @@ pub fn try_donate (
     let donation_amount = info.funds[0].amount;
     let mut messages = vec![];
     for cur_donation in donations {
-        let cur_amt = cur_donation.amt as u128;
+        let cur_amt = cur_donation.amt;
         let coin_amount = Coin {
-            amount: Uint128::from(cur_amt),
+            amount: cur_amt,
             denom: info.funds[0].denom.to_string(),
         };
         amt_recived -= coin_amount.amount.u128();
@@ -93,12 +93,10 @@ pub fn try_donate (
             // Some(data) => Ok(VictimData{amount_owed: Uint128::from(123u128), amount_recived: data.amount_recived}),
             // None => Ok(VictimData{amount_owed: Uint128::from(456u128), amount_recived: Uint128::from(0u128)}),
            Some(data) => {
-                let (new_amt_recived, overflow_check) = data.amount_recived.overflowing_add(cur_donation.amt);
-                assert_eq!(overflow_check, false);
+                let new_amt_recived = data.amount_recived + cur_donation.amt;
                 if new_amt_recived > data.amount_owed {
                     return Err(StdError::generic_err(format!("{} Donate function: unable to donate more than the user is owed", cur_addr)))
                 }
-
                 Ok(VictimData{amount_owed: data.amount_owed, amount_recived: new_amt_recived, on_chain: data.on_chain})
            },
            None => Err(StdError::generic_err(format!("{} Donate function: user not found, for user modify recived", cur_addr))),
@@ -174,7 +172,7 @@ pub fn try_victim_entry(deps: DepsMut, info: MessageInfo, victims: Vec<InputVict
                 // Some(data) => Ok(VictimData{amount_owed: Uint128::from(123u128), amount_recived: data.amount_recived}), //
                 // None => Ok(VictimData{amount_owed: Uint128::from(456u128), amount_recived: Uint128::from(0u128)}),
                Some(data) => Ok(VictimData{amount_owed: cur_owed, amount_recived: data.amount_recived, on_chain: on_chain}), //
-               None => Ok(VictimData{amount_owed: cur_owed, amount_recived: 0u32, on_chain: on_chain}),
+               None => Ok(VictimData{amount_owed: cur_owed, amount_recived: Uint128::from(0u128), on_chain: on_chain}),
             }
         };
         VICTIMS.update(deps.storage, &cur_addr, update_victim_data_closure)?;

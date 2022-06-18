@@ -69,7 +69,7 @@ pub struct VictimInfo {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InputVictimInfoOwe {
     pub address: String,
-    pub owed: u32,
+    pub owed: Uint128,
     pub onchain: bool,
 }
 
@@ -77,7 +77,7 @@ pub struct InputVictimInfoOwe {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InputVictimInfoPaid {
     pub address: String,
-    pub paid: u32,
+    pub paid: Uint128,
 }
 
 
@@ -87,7 +87,7 @@ pub struct InputVictimInfoPaid {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InputDonation {
     pub address: String,
-    pub amt: u32,
+    pub amt: Uint128,
 }
 
 // Output for when user queies for all donation

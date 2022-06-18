@@ -16,8 +16,8 @@ pub struct State {
 //A victim data that exists on the chain.  each victim data corrasponds to a victim
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct VictimData {
-    pub amount_owed: u32,
-    pub amount_recived: u32,
+    pub amount_owed: Uint128,
+    pub amount_recived: Uint128,
     pub on_chain: bool,
 }
 
