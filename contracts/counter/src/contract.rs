@@ -274,132 +274,259 @@ mod tests {
     }
 
     #[test]
-    fn increment() {
+    fn raffle_unauth() {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
         let msg = InstantiateMsg { raffle_state: 17 };
         let info = mock_info("creator", &coins(2, "token"));
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        // // beneficiary can release it
-        // let info = mock_info("anyone", &coins(2, "token"));
-        // let msg = ExecuteMsg::Increment {};
-        // let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // should increase counter by 1
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetRaffleState {}).unwrap();
-        let value: RaffleStateResponse = from_binary(&res).unwrap();
-        assert_eq!(0, value.raffle_state);
+        // Anyone tries to set value
+        let unauth_info = mock_info("anyone", &coins(2, "token"));
+        let msg = ExecuteMsg::SetRaffleState {new_raffle_value: 33};
+        let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+        match res {
+            Err(ContractError::Unauthorized {}) => {}
+            _ => panic!("Must return unauthorized error"),
+        }
     }
 
     #[test]
-    fn reset() {
-        // let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+    fn raffle_owner() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
-        // let msg = InstantiateMsg { count: 17 };
-        // let info = mock_info("creator", &coins(2, "token"));
-        // let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let msg = InstantiateMsg { raffle_state: 17 };
+        let info = mock_info("creator", &coins(2, "token"));
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        // // beneficiary can release it
-        // let unauth_info = mock_info("anyone", &coins(2, "token"));
-        // let msg = ExecuteMsg::Reset { count: 5 };
-        // let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-        // match res {
-        //     Err(ContractError::Unauthorized {}) => {}
-        //     _ => panic!("Must return unauthorized error"),
-        // }
+        // Owner tries to set value
+        let unauth_info = mock_info("creator", &coins(2, "token"));
+        let msg = ExecuteMsg::SetRaffleState {new_raffle_value: 33};
+        let _res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
 
-        // // only the original creator can reset the counter
-        // let auth_info = mock_info("creator", &coins(2, "token"));
-        // let msg = ExecuteMsg::Reset { count: 5 };
-        // let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
+        // should set raffle number to 33
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetRaffleState {}).unwrap();
+        let value: RaffleStateResponse = from_binary(&res).unwrap();
+        assert_eq!(33, value.raffle_state);
+    }
+    #[test]
+    fn transfer_ownership_unauth() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
-        // // should now be 5
-        // let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        // let value: RaffleStateResponse = from_binary(&res).unwrap();
-        // assert_eq!(5, value.count);
+        let msg = InstantiateMsg { raffle_state: 0 };
+        let info = mock_info("creator", &coins(2, "token"));
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // Anyone tries to set value
+        let unauth_info = mock_info("anyone", &coins(2, "token"));
+        let msg = ExecuteMsg::TransferOwnership {address: String::from(unauth_info.sender.as_str())};
+        let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+        match res {
+            Err(ContractError::OnlyOwner{}) => {}
+            _ => panic!("Must return not owner error"),
+        }
     }
 
-////////////// multi send tests here
-    // #[test]
-    // fn multisend() {
+    #[test]
+    fn transfer_ownership_owner() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
-    //     let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let msg = InstantiateMsg { raffle_state: 0 };
+        let info = mock_info("creator", &coins(2, "token"));
+        let info_clone = info.clone();
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    //     let msg = InstantiateMsg { raffle_state: 17 };
-    //     let info = mock_info("creator", &coins(2000, "token"));
-    //     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        // Owner tries to set value
+        let unauth_info = mock_info("anyone", &coins(2, "token"));
+        let msg = ExecuteMsg::TransferOwnership {address: String::from(unauth_info.sender.as_str())};
+        let _res = execute(deps.as_mut(), mock_env(), info_clone, msg);
 
-    //     // // beneficiary can release it
-    //     // let info = mock_info("anyone", &coins(2, "token"));
-    //     // let msg = ExecuteMsg::Increment {};
-    //     // let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        // should set to anyone
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetOwnerAddr {}).unwrap();
+        let value: OwnderAddressResponse = from_binary(&res).unwrap();
+        assert_eq!(unauth_info.sender, value.owner_address);
+    }
 
-    //     // should increase counter by 1
-    //     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetRaffleState {}).unwrap();
-    //     let value: RaffleStateResponse = from_binary(&res).unwrap();
-    //     assert_eq!(0, value.raffle_state);
+#[test]
+fn victim_entry_unauth() {
+    let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
+    let msg = InstantiateMsg { raffle_state: 0 };
+    let info = mock_info("creator", &coins(2, "token"));
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    //     let balance = coins(200, "token");
-    //     let env = mock_env("anyone", &balance);
-    //     let coin = Coin {
-    //         amount: Uint128(100),
-    //         denom: "token".to_string(),
-    //     };
-    //     let payment1 = Payment {
-    //         recipient: "recipient1",
-    //         pay: vec![coin.clone()],
-    //     };
-    //     let payment2 = Payment {
-    //         recipient: "recipient2",
-    //         pay: vec![coin.clone()],
-    //     };
+    // Anyone tries to set value
+    let unauth_info = mock_info("anyone", &coins(2, "token"));
+    let msg = ExecuteMsg::VictimEntry {victims: vec![InputVictimInfoOwe{
+        address: String::from(unauth_info.sender.as_str()),
+        owed: Uint128::from(100u128),
+        onchain: true,
+    }]};
+    let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+    match res {
+        Err(ContractError::OnlyOwner{}) => {}
+        _ => panic!("Must return not owner error"),
+    }
+}
 
-    //     let msg = ExecuteMsg::MultiSend {
-    //         payments: vec![payment1, payment2],
-    //     };
+#[test]
+fn victim_entry_owner() {
+    let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
-    //     let res = handle(&mut deps, env, msg).unwrap();
-    //     println!("Messages {:#?}", res.messages);
-    //     println!("Log {:#?}", res.log);
-    // }
+    let msg = InstantiateMsg { raffle_state: 0 };
+    let info = mock_info("creator", &coins(2, "token"));
+    let info_clone = info.clone();
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // #[test]
-    // fn empty_multisend() {
-    //     let mut deps = mock_dependencies(20, &[]);
-    //     let fee = Coin {
-    //         amount: Uint128(100),
-    //         denom: "token".to_string(),
-    //     };
+    // Owner tries to set value
+    let unauth_info = mock_info("anyone", &coins(2, "token"));
+    let msg = ExecuteMsg::VictimEntry {victims: vec![InputVictimInfoOwe{
+        address: String::from(unauth_info.sender.as_str()),
+        owed: Uint128::from(100u128),
+        onchain: true,
+    }]};
+    let _res = execute(deps.as_mut(), mock_env(), info_clone, msg);
 
-    //     let msg = InitMsg { fee: fee.clone() };
-    //     let env = mock_env("creator", &coins(1000, "token"));
+    // should set victim
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetVictimData {}).unwrap();
+    let value: AllVictimsResponse = from_binary(&res).unwrap();
+    assert_eq!(vec![VictimInfo{
+        address: unauth_info.sender,
+        victim: VictimData{
+            amount_owed: Uint128::from(100u128),
+            amount_recived: Uint128::from(0u128),
+            on_chain: true,
+        },
+    }], value.victims);
+}
 
-    //     let _res = init(&mut deps, env, msg).unwrap();
+#[test]
+fn victim_owed_change_owner() {
+    let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
-    //     let env = mock_env("anyone", &[]);
-    //     let coin = Coin {
-    //         amount: Uint128(100),
-    //         denom: "token".to_string(),
-    //     };
-    //     let payment1 = Payment {
-    //         recipient: "recipient1",
-    //         pay: vec![coin.clone()],
-    //     };
+    let msg = InstantiateMsg { raffle_state: 0 };
+    let info = mock_info("creator", &coins(2, "token"));
+    let info_clone = info.clone();
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    //     let msg = HandleMsg::MultiSend {
-    //         payments: vec![payment1],
-    //     };
-    //     let res = handle(&mut deps, env, msg);
-    //     match res {
-    //         Ok(_) => panic!("expected error"),
-    //         Err(StdError::GenericErr { msg, .. }) => {
-    //             assert_eq!(msg, "You must pass some coins to send make a multisend")
-    //         }
-    //         Err(e) => panic!("unexpected error: {:?}", e),
-    //     }
-    // }
+    // Owner tries to set value
+    let unauth_info = mock_info("anyone", &coins(2, "token"));
+    let msg = ExecuteMsg::VictimEntry {victims: vec![InputVictimInfoOwe{
+        address: String::from(unauth_info.sender.as_str()),
+        owed: Uint128::from(100u128),
+        onchain: true,
+    }]};
+    let _res = execute(deps.as_mut(), mock_env(), info_clone.clone(), msg);
 
+    let unauth_info = mock_info("anyone", &coins(2, "token"));
+    let msg = ExecuteMsg::VictimEntry {victims: vec![InputVictimInfoOwe{
+        address: String::from(unauth_info.sender.as_str()),
+        owed: Uint128::from(200u128),
+        onchain: true,
+    }]};
+    let _res = execute(deps.as_mut(), mock_env(), info_clone, msg);
 
+    // should set victim
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetVictimData {}).unwrap();
+    let value: AllVictimsResponse = from_binary(&res).unwrap();
+    assert_eq!(vec![VictimInfo{
+        address: unauth_info.sender,
+        victim: VictimData{
+            amount_owed: Uint128::from(200u128),
+            amount_recived: Uint128::from(0u128),
+            on_chain: true,
+        },
+    }], value.victims);
+}
+
+#[test]
+fn victim_mod_unauth() {
+    let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+    let msg = InstantiateMsg { raffle_state: 0 };
+    let info = mock_info("creator", &coins(2, "token"));
+    let info_clone = info.clone();
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // Owner tries to set value
+    let unauth_info = mock_info("anyone", &coins(2, "token"));
+    let msg = ExecuteMsg::VictimEntry {victims: vec![InputVictimInfoOwe{
+        address: String::from(unauth_info.sender.as_str()),
+        owed: Uint128::from(100u128),
+        onchain: true,
+    }]};
+    let _res = execute(deps.as_mut(), mock_env(), info_clone, msg);
+
+    // should set victim
+    let _res = query(deps.as_ref(), mock_env(), QueryMsg::GetVictimData {}).unwrap();
+
+    // Anyone tries to mod value
+    let unauth_info = mock_info("anyone", &coins(2, "token"));
+    let msg = ExecuteMsg::VictimAmtModify {victims: vec![InputVictimInfoPaid{
+        address: String::from(unauth_info.sender.as_str()),
+        paid: Uint128::from(100u128),
+    }]};
+    let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+    match res {
+        Err(ContractError::OnlyOwner{}) => {}
+        _ => panic!("Must return not owner error"),
+    }
+}
+
+#[test]
+fn victim_mod_owner() {
+    let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+    let msg = InstantiateMsg { raffle_state: 0 };
+    let info = mock_info("creator", &coins(2, "token"));
+    let info_clone = info.clone();
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // Owner tries to set value
+    let unauth_info = mock_info("anyone", &coins(2, "token"));
+    let msg = ExecuteMsg::VictimEntry {victims: vec![InputVictimInfoOwe{
+        address: String::from(unauth_info.sender.as_str()),
+        owed: Uint128::from(100u128),
+        onchain: true,
+    }]};
+    let _res = execute(deps.as_mut(), mock_env(), info_clone.clone(), msg);
+
+    // should set victim
+    let _res = query(deps.as_ref(), mock_env(), QueryMsg::GetVictimData {}).unwrap();
+
+    // Anyone tries to mod value
+    let msg = ExecuteMsg::VictimAmtModify {victims: vec![InputVictimInfoPaid{
+        address: String::from(unauth_info.sender.as_str()),
+        paid: Uint128::from(50u128),
+    }]};
+    let _res = execute(deps.as_mut(), mock_env(), info_clone.clone(), msg);
+
+    // should set victim
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetVictimData {}).unwrap();
+    let value: AllVictimsResponse = from_binary(&res).unwrap();
+    assert_eq!(vec![VictimInfo{
+        address: unauth_info.sender,
+        victim: VictimData{
+            amount_owed: Uint128::from(100u128),
+            amount_recived: Uint128::from(50u128),
+            on_chain: true,
+        },
+    }], value.victims);
+}
+
+/* TODO */
+//amount sent too high compared to amt to donate
+/*Donate {donations: Vec<InputDonation>}, */
+//amt sent too low compared to amt to donate
+/*Donate {donations: Vec<InputDonation>}, */
+//sent too many diff tokens
+/*Donate {donations: Vec<InputDonation>}, */
+//sent wrong type of token
+/*Donate {donations: Vec<InputDonation>}, */
+//try donate more than user is owed
+/*Donate {donations: Vec<InputDonation>}, */
+//victim not found
+/*Donate {donations: Vec<InputDonation>}, */
+//donate correct
+/*Donate {donations: Vec<InputDonation>}, */
 }
