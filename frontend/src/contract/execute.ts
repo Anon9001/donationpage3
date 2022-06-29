@@ -29,12 +29,13 @@ const _exec = (msg: any, totalLunaAmt: Number) =>
 
     if (totalLunaAmt > 0) {
       //    const c = new Coin("uluna", 1500); // .0015 LUNA
-      const c = new Coin("uluna", totalLunaAmt.valueOf()); // .0015 LUNA
+//      const c1 = new Coin("uluna", totalLunaAmt.valueOf()); // .0015 LUNA
+      const c2 = new Coin("ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3", totalLunaAmt.valueOf()); // .0015 USDC
       msgExeCon =         new MsgExecuteContract(
         wallet.walletAddress,
         contractAdress(wallet),
         msg,
-      new Coins([c])
+      new Coins([c2])
       )
     }
     const { result } = await wallet.post({

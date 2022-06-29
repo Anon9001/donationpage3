@@ -65,7 +65,7 @@ pub fn try_donate (
 
     //NOTE change this to USDC, USDT, stable coins on prod
     //PUT this in a settings file?
-    if info.funds[0].denom != "uluna" {
+    if info.funds[0].denom != "ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3"  {
         return Err(ContractError::DonateIncorrectType{})
     }
 
