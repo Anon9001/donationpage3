@@ -63,9 +63,10 @@ pub fn try_donate (
         return Err(ContractError::DonateIncorrectNumberTypes{})
     }
 
-    //NOTE change this to USDC, USDT, stable coins on prod
     //PUT this in a settings file?
-    if info.funds[0].denom != "ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3"  {
+    //testnet denom: ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3
+    //mainnet denom: ibc/CBF67A2BCF6CAE343FDF251E510C8E18C361FC02B23430C121116E0811835DEF
+    if info.funds[0].denom != "ibc/CBF67A2BCF6CAE343FDF251E510C8E18C361FC02B23430C121116E0811835DEF"  {
         return Err(ContractError::DonateIncorrectType{})
     }
 
