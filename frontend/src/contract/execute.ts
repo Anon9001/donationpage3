@@ -30,7 +30,7 @@ const _exec = (msg: any, totalLunaAmt: Number) =>
     if (totalLunaAmt > 0) {
       //testnet denom: ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3
       //mainnet denom: ibc/CBF67A2BCF6CAE343FDF251E510C8E18C361FC02B23430C121116E0811835DEF
-      const c2 = new Coin("ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3", totalLunaAmt.valueOf()); // .0015 USDC
+      const c2 = new Coin("ibc/CBF67A2BCF6CAE343FDF251E510C8E18C361FC02B23430C121116E0811835DEF", totalLunaAmt.valueOf()); // .0015 USDC
       msgExeCon =         new MsgExecuteContract(
         wallet.walletAddress,
         contractAdress(wallet),
